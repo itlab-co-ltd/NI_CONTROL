@@ -25,8 +25,6 @@ void Sleep_Process(DWORD Sleep_Ms)
 
 JK_ITLab::NICard::NICard()
 {
-	m_isUsingSync = false;
-
 	m_Handle_AnalogInput 	 = 0x00;
 	m_Handle_Addr		 	 = 0x00;
 	m_Handle_Control 		 = 0x00;
@@ -49,13 +47,11 @@ JK_ITLab::NICard::NICard()
 	memset(m_current_ad, 0x00, sizeof(m_current_ad));
 }
 
-bool JK_ITLab::NICard::init(bool in_isUsingSync)
+bool JK_ITLab::NICard::init()
 {
 #ifdef JK_NI_TESTING
 	return true;
 #else
-	m_isUsingSync = in_isUsingSync;
-
 	if(DAQmxFailed(DAQmxCreateTask("",&m_Handle_AnalogInput)))return false;
 	if(DAQmxFailed(DAQmxCreateAIVoltageChan(m_Handle_AnalogInput,//핸들
 	"Dev1/ai0:15",//물리적 채널
@@ -162,62 +158,65 @@ void JK_ITLab::NICard::set_ni_ad()
 #endif
 }
 
-bool JK_ITLab::NICard::get_input(unsigned char in_cardAddress)
+bool JK_ITLab::NICard::get_input(unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
  	unsigned char Addr_Byte[8] = {0,};
 
-	//주소생성
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_INPUT_32CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_INPUT_32CH_1;
 			break;
 
-		case CARD_ADDRESS_INPUT_32CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_INPUT_32CH_2;
 			break;
 
-		case CARD_ADDRESS_INPUT_32CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_INPUT_32CH_3;
 			break;
 
-		case CARD_ADDRESS_INPUT_32CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_INPUT_32CH_4;
 			break;
 
 		default:
 			return false;
 	}
 
+	//주소생성
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
 	//1~8번핀
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
-	if(!recv(m_input[channel], Addr_Byte))
+	if(!recv(m_input[in_ch], Addr_Byte))
 		return false;
 
 	//9~16번핀
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x00;
-	if(!recv(&m_input[channel][8], Addr_Byte))
+	if(!recv(&m_input[in_ch][8], Addr_Byte))
 		return false;
 
 	//17~24번핀
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x01;
-	if(!recv(&m_input[channel][16], Addr_Byte))
+	if(!recv(&m_input[in_ch][16], Addr_Byte))
 		return false;
 
 	//25~32번핀
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x01;
-	if(!recv(&m_input[channel][24], Addr_Byte))
+	if(!recv(&m_input[in_ch][24], Addr_Byte))
 		return false;
 
 	return true;
@@ -225,46 +224,49 @@ bool JK_ITLab::NICard::get_input(unsigned char in_cardAddress)
 
 //==============================================================================
 
-bool JK_ITLab::NICard::set_output(unsigned char in_cardAddress)
+bool JK_ITLab::NICard::set_output(unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
 	char Data_Byte[8] = {0,};
 	char Addr_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_OUTPUT_32CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_OUTPUT_32CH_1;
 			break;
 
-		case CARD_ADDRESS_OUTPUT_32CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_OUTPUT_32CH_2;
 			break;
 
-		case CARD_ADDRESS_OUTPUT_32CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_OUTPUT_32CH_3;
 			break;
 
-		case CARD_ADDRESS_OUTPUT_32CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_OUTPUT_32CH_4;
 			break;
 
 		default:
 			return false;
 	}
 
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
 	//00 1~8
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, m_output[channel], sizeof(Data_Byte));
+	memcpy(Data_Byte, m_output[in_ch], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
@@ -273,7 +275,7 @@ bool JK_ITLab::NICard::set_output(unsigned char in_cardAddress)
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_output[channel][8], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_output[in_ch][8], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
@@ -282,7 +284,7 @@ bool JK_ITLab::NICard::set_output(unsigned char in_cardAddress)
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x01;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_output[channel][16], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_output[in_ch][16], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
@@ -291,7 +293,7 @@ bool JK_ITLab::NICard::set_output(unsigned char in_cardAddress)
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x01;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_output[channel][24], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_output[in_ch][24], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
@@ -301,47 +303,50 @@ bool JK_ITLab::NICard::set_output(unsigned char in_cardAddress)
 
 //==============================================================================
 
-bool JK_ITLab::NICard::test_short_24ch(int in_numOfPin, int in_shortDelay, unsigned char in_cardAddress)
+bool JK_ITLab::NICard::test_short_24ch(int in_numOfPin, int in_shortDelay, unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
 	if(in_numOfPin > 24)
 		return false;
 
 	char Addr_Byte[8] = {0,};
 	char Data_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_SHORT_24CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_SHORT_24CH_1;
 			break;
 
-		case CARD_ADDRESS_SHORT_24CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_SHORT_24CH_2;
 			break;
 
-		case CARD_ADDRESS_SHORT_24CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_SHORT_24CH_3;
 			break;
 
-		case CARD_ADDRESS_SHORT_24CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_SHORT_24CH_4;
 			break;
 
 		default:
 			return false;
 	}
 
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
+
 	//데이터 초기화
-	for(int x = 0; x < 50; x++)
-		memset(m_short_data[channel][x], 0x00, sizeof(m_short_data[channel][x]));
+	memset(m_short_data[in_ch], 0x00, sizeof(m_short_data[in_ch]));
 
 	//카드 초기화
 	//00 1~8
@@ -417,7 +422,7 @@ bool JK_ITLab::NICard::test_short_24ch(int in_numOfPin, int in_shortDelay, unsig
 			Sleep_Process(in_shortDelay);
 			DAQmxReadAnalogF64(m_Handle_AnalogInput, -1, 10.0, DAQmx_Val_GroupByChannel, AnalogData, 16, &read_analog, NULL);
 
-			memcpy(&m_short_data[channel][sigCh][mulCh*4], &AnalogData, sizeof(double)*4);
+			memcpy(&m_short_data[in_ch][sigCh][mulCh*4], &AnalogData, sizeof(double)*4);
 		}
 
 		//초기화
@@ -450,8 +455,11 @@ bool JK_ITLab::NICard::test_short_24ch(int in_numOfPin, int in_shortDelay, unsig
 
 //==============================================================================
 
-bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsigned char in_cardAddress)
+bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
 #ifdef JK_NI_TESTING
 	return true;
 #else
@@ -461,34 +469,34 @@ bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsig
 	char Addr_Byte[8] = {0,};
 	char Data_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_IP_SHORT_MUX_40CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_SHORT_40CH_1;
 			break;
 
-		case CARD_ADDRESS_IP_SHORT_MUX_40CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_SHORT_40CH_2;
 			break;
 
-		case CARD_ADDRESS_IP_SHORT_MUX_40CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_SHORT_40CH_3;
 			break;
 
-		case CARD_ADDRESS_IP_SHORT_MUX_40CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_SHORT_40CH_4;
 			break;
 
 		default:
 			return false;
+	}
+
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
 	}
 	//데이터 초기화
 	memset(m_short_data, 0x00, sizeof(m_short_data));
@@ -599,7 +607,7 @@ bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsig
 			Sleep_Process(in_shortDelay);
 			DAQmxReadAnalogF64(m_Handle_AnalogInput, -1, 10.0, DAQmx_Val_GroupByChannel, AnalogData, 16, &read_analog, NULL);
 
-			memcpy(&m_short_data[channel][sigCh][mulCh*8], &AnalogData, sizeof(double)*8);
+			memcpy(&m_short_data[in_ch][sigCh][mulCh*8], &AnalogData, sizeof(double)*8);
 		}
 
 		//초기화
@@ -649,59 +657,62 @@ bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsig
 }
 //==============================================================================
 
-bool JK_ITLab::NICard::set_ad(unsigned char in_cardAddress)
+bool JK_ITLab::NICard::set_ad(unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
 	char Data_Byte[8] = {0,};
 	char Addr_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_AD_24CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_AD_24CH_1;
 			break;
 
-		case CARD_ADDRESS_AD_24CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_AD_24CH_2;
 			break;
 
-		case CARD_ADDRESS_AD_24CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_AD_24CH_3;
 			break;
 
-		case CARD_ADDRESS_AD_24CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_AD_24CH_4;
 			break;
 
 		default:
 			return false;
 	}
 
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
 	//00 1~8
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
-	memcpy(Data_Byte, &m_ad_set[channel][0], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_ad_set[in_ch][0], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false))
 		return false;
 
 	//10 9~16
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x00;
-	memcpy(Data_Byte, &m_ad_set[channel][8], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_ad_set[in_ch][8], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false))
 		return false;
 
 	//01 17~24
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x01;
-	memcpy(Data_Byte, &m_ad_set[channel][16], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_ad_set[in_ch][16], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false))
 		return false;
 
@@ -710,46 +721,49 @@ bool JK_ITLab::NICard::set_ad(unsigned char in_cardAddress)
 
 //==============================================================================
 
-bool JK_ITLab::NICard::set_onoff_output(unsigned char in_cardAddress)
+bool JK_ITLab::NICard::set_onoff_output(unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
  	char Data_Byte[8] = {0,};
 	char Addr_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_ON_OFF_OUTPUT_24CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_ON_OFF_OUTPUT_24CH_1;
 			break;
 
-		case CARD_ADDRESS_ON_OFF_OUTPUT_24CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_ON_OFF_OUTPUT_24CH_2;
 			break;
 
-		case CARD_ADDRESS_ON_OFF_OUTPUT_24CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_ON_OFF_OUTPUT_24CH_3;
 			break;
 
-		case CARD_ADDRESS_ON_OFF_OUTPUT_24CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_ON_OFF_OUTPUT_24CH_4;
 			break;
 
 		default:
 			return false;
 	}
 
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
 	//00 1~8
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, m_on_off_output[channel], sizeof(Data_Byte));
+	memcpy(Data_Byte, m_on_off_output[in_ch], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true)) return false;
 
@@ -757,7 +771,7 @@ bool JK_ITLab::NICard::set_onoff_output(unsigned char in_cardAddress)
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_on_off_output[channel][8], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_on_off_output[in_ch][8], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true)) return false;
 
@@ -765,7 +779,7 @@ bool JK_ITLab::NICard::set_onoff_output(unsigned char in_cardAddress)
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x01;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_on_off_output[channel][16], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_on_off_output[in_ch][16], sizeof(Data_Byte));
 
 	if(!send(Addr_Byte, Data_Byte, true)) return false;
 
@@ -774,48 +788,53 @@ bool JK_ITLab::NICard::set_onoff_output(unsigned char in_cardAddress)
 
 //==============================================================================
 
-bool JK_ITLab::NICard::set_current(unsigned char in_cardAddress)
+bool JK_ITLab::NICard::set_current(unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
  	char Addr_Byte[8] = {0,};
 	char Data_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_CURRENT_4CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CARD_ADDRESS_CURRENT_4CH_1;
 			break;
 
-		case CARD_ADDRESS_CURRENT_4CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CARD_ADDRESS_CURRENT_4CH_2;
 			break;
 
-		case CARD_ADDRESS_CURRENT_4CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CARD_ADDRESS_CURRENT_4CH_3;
 			break;
 
-		case CARD_ADDRESS_CURRENT_4CH_4:
-			channel = 3;
+		case 3:
+			Card_Addr = CARD_ADDRESS_CURRENT_4CH_4;
 			break;
 
 		default:
 			return false;
 	}
-	Data_Byte[0] = m_current_shunt[channel][0];
-	Data_Byte[1] = m_current_shunt[channel][1];
-	Data_Byte[2] = m_current_shunt[channel][2];
-	Data_Byte[3] = m_current_shunt[channel][3];
-	Data_Byte[4] = m_current_ad[channel][0];
-	Data_Byte[5] = m_current_ad[channel][1];
-	Data_Byte[6] = m_current_ad[channel][2];
-	Data_Byte[7] = m_current_ad[channel][3];
+
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
+
+	Data_Byte[0] = m_current_shunt[in_ch][0];
+	Data_Byte[1] = m_current_shunt[in_ch][1];
+	Data_Byte[2] = m_current_shunt[in_ch][2];
+	Data_Byte[3] = m_current_shunt[in_ch][3];
+	Data_Byte[4] = m_current_ad[in_ch][0];
+	Data_Byte[5] = m_current_ad[in_ch][1];
+	Data_Byte[6] = m_current_ad[in_ch][2];
+	Data_Byte[7] = m_current_ad[in_ch][3];
 	if(!send(Addr_Byte, Data_Byte, true))
 		return false;//채널 명령 전송
 
@@ -982,11 +1001,6 @@ bool JK_ITLab::NICard::UnitSyncCheck()
 	int32 read, Sample;
 	char UnitSync = -1;
 
-	if(!m_isUsingSync)
-	{
-		Sleep_Process(READ_WRITE_TIME);
-		return true;//사용하지 않을 경우에 슬립후 true리턴한다.
-	}
 	unsigned long Tick = GetTickCount();
 	while(true)
 	{
@@ -1003,260 +1017,279 @@ bool JK_ITLab::NICard::UnitSyncCheck()
 	return true;
 }
 
-bool JK_ITLab::NICard::set_onoff_input(unsigned char in_cardAddress, bool is_40pin)
+bool JK_ITLab::NICard::set_onoff_input(unsigned char in_ch)
 {
+	if(in_ch >= 4)
+		return false;
+
 	char Data_Byte[8] = {0,};
 	char Addr_Byte[8] = {0,};
 
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
 	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_1:
-			channel = 0;
+		case 0:
+			Card_Addr = CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_1;
 			break;
 
-		case CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_2:
-			channel = 1;
+		case 1:
+			Card_Addr = CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_2;
 			break;
 
-		case CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_3:
-			channel = 2;
+		case 2:
+			Card_Addr = CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_3;
 			break;
 
-		case CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_4:
-			channel = 3;
-			break;
-
-		default:
-		return false;
-	}
-
-	if(is_40pin && in_cardAddress == CARD_ADDRESS_ON_OFF_INPUT_SET_40CH_2)
-    	channel = 1;
-
-	//00 1~8
-	Addr_Byte[0] = 0x00;
-	Addr_Byte[1] = 0x00;
-	if(is_40pin)Addr_Byte[2] = 0x00;
-	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, m_on_off_input_pull_up[channel], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, true)) return false;
-	memcpy(Data_Byte, m_on_off_input_pull_down[channel], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, false)) return false;
-
-	//10 9~16
-	Addr_Byte[0] = 0x01;
-	Addr_Byte[1] = 0x00;
-	if(is_40pin)Addr_Byte[2] = 0x00;
-	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_on_off_input_pull_up[channel][8], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, true)) return false;
-	memcpy(Data_Byte, &m_on_off_input_pull_down[channel][8], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, false)) return false;
-
-	//01 17~24
-	Addr_Byte[0] = 0x00;
-	Addr_Byte[1] = 0x01;
-	if(is_40pin)Addr_Byte[2] = 0x00;
-	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_on_off_input_pull_up[channel][16], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, true)) return false;
-	memcpy(Data_Byte, &m_on_off_input_pull_down[channel][16], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, false)) return false;
-
-	if(is_40pin)
-	{
-		//01 25~32
-		Addr_Byte[0] = 0x01;
-		Addr_Byte[1] = 0x01;
-		Addr_Byte[2] = 0x00;
-		memset(Data_Byte, 0x00, sizeof(Data_Byte));
-		memcpy(Data_Byte, &m_on_off_input_pull_up[channel][24], sizeof(Data_Byte));
-		if(!send(Addr_Byte, Data_Byte, true)) return false;
-		memcpy(Data_Byte, &m_on_off_input_pull_down[channel][24], sizeof(Data_Byte));
-		if(!send(Addr_Byte, Data_Byte, false)) return false;
-
-		//01 33~40
-		Addr_Byte[0] = 0x00;
-		Addr_Byte[1] = 0x00;
-		Addr_Byte[2] = 0x01;
-		memset(Data_Byte, 0x00, sizeof(Data_Byte));
-		memcpy(Data_Byte, &m_on_off_input_pull_up[channel][32], sizeof(Data_Byte));
-		if(!send(Addr_Byte, Data_Byte, true)) return false;
-		memcpy(Data_Byte, &m_on_off_input_pull_down[channel][32], sizeof(Data_Byte));
-		if(!send(Addr_Byte, Data_Byte, false)) return false;
-    }
-
-	return true;
-}
-
-bool JK_ITLab::NICard::get_onoff_input(unsigned char in_cardAddress, bool is_40pin)
-{
-	char Read_Byte[8] = {0,};
-	char Addr_Byte[8] = {0,};
-
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
-	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_1:
-			channel = 0;
-			break;
-
-		case CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_2:
-			channel = 1;
-			break;
-
-		case CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_3:
-			channel = 2;
-			break;
-
-		case CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_4:
-			channel = 3;
-			break;
-
-		default:
-		return false;
-	}
-
-	if(is_40pin && in_cardAddress == CARD_ADDRESS_ON_OFF_INPUT_READ_40CH_2)
-		channel = 1;
-
-	Addr_Byte[0] = 0x00;
-	Addr_Byte[1] = 0x00;
-	Addr_Byte[2] = 0x00;
-	if(!recv(Read_Byte, Addr_Byte))
-		return false;
-	memcpy(&m_on_off_input[channel][0], Read_Byte, sizeof(Read_Byte));
-
-	Addr_Byte[0] = 0x01;
-	Addr_Byte[1] = 0x00;
-	Addr_Byte[2] = 0x00;
-	if(!recv(Read_Byte, Addr_Byte))
-		return false;
-	memcpy(&m_on_off_input[channel][8], Read_Byte, sizeof(Read_Byte));
-
-	Addr_Byte[0] = 0x00;
-	Addr_Byte[1] = 0x01;
-	Addr_Byte[2] = 0x00;
-	if(!recv(Read_Byte, Addr_Byte))
-		return false;
-	memcpy(&m_on_off_input[channel][16], Read_Byte, sizeof(Read_Byte));
-
-	Addr_Byte[0] = 0x01;
-	Addr_Byte[1] = 0x01;
-	Addr_Byte[2] = 0x00;
-	if(!recv(Read_Byte, Addr_Byte))
-		return false;
-	memcpy(&m_on_off_input[channel][24], Read_Byte, sizeof(Read_Byte));
-
-	Addr_Byte[0] = 0x00;
-	Addr_Byte[1] = 0x00;
-	Addr_Byte[2] = 0x01;
-	if(!recv(Read_Byte, Addr_Byte))
-		return false;
-	memcpy(&m_on_off_input[channel][32], Read_Byte, sizeof(Read_Byte));
-
-	return true;
-}
-
-bool JK_ITLab::NICard::set_mux(unsigned char in_cardAddress)
-{
- 	char Data_Byte[8] = {0,};
-	char Addr_Byte[8] = {0,};
-
-	//주소만들기
-	for(int i = 0 ; i < 8 ; i++)
-	{
-		if((0x01 << i) & in_cardAddress)
-			Addr_Byte[i] = 0x01;
-	}
-
-	int channel = -1;
-	switch(in_cardAddress)
-	{
-		case CARD_ADDRESS_IP_MUX_40CH_1:
-			channel = 0;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_2:
-			channel = 1;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_3:
-			channel = 2;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_4:
-			channel = 3;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_5:
-			channel = 4;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_6:
-			channel = 5;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_7:
-			channel = 6;
-			break;
-
-		case CARD_ADDRESS_IP_MUX_40CH_8:
-			channel = 7;
+		case 3:
+			Card_Addr = CAED_ADDRESS_ON_OFF_INPUT_SET_24CH_4;
 			break;
 
 		default:
 			return false;
 	}
 
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
 	//00 1~8
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, m_mux[channel], sizeof(Data_Byte));
+	memcpy(Data_Byte, m_on_off_input_pull_up[in_ch], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, true)) return false;
+	memcpy(Data_Byte, m_on_off_input_pull_down[in_ch], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
 	//10 9~16
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_mux[channel][8], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][8], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, true)) return false;
+	memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][8], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
 	//01 17~24
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x01;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_mux[channel][16], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][16], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, true)) return false;
+	memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][16], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, false)) return false;
+
+	//40채널짜리인지 확인한다.
+	for(int i = 24; i < 40; i++)
+	{
+		if(m_on_off_input_pull_up[in_ch][i] != 0x00
+		|| m_on_off_input_pull_down[in_ch][i] != 0x00)
+		{
+			//01 25~32
+			Addr_Byte[0] = 0x01;
+			Addr_Byte[1] = 0x01;
+			Addr_Byte[2] = 0x00;
+			memset(Data_Byte, 0x00, sizeof(Data_Byte));
+			memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][24], sizeof(Data_Byte));
+			if(!send(Addr_Byte, Data_Byte, true)) return false;
+			memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][24], sizeof(Data_Byte));
+			if(!send(Addr_Byte, Data_Byte, false)) return false;
+
+			//01 33~40
+			Addr_Byte[0] = 0x00;
+			Addr_Byte[1] = 0x00;
+			Addr_Byte[2] = 0x01;
+			memset(Data_Byte, 0x00, sizeof(Data_Byte));
+			memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][32], sizeof(Data_Byte));
+			if(!send(Addr_Byte, Data_Byte, true)) return false;
+			memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][32], sizeof(Data_Byte));
+			if(!send(Addr_Byte, Data_Byte, false)) return false;
+
+			break;
+		}
+	}
+
+	return true;
+}
+
+bool JK_ITLab::NICard::get_onoff_input(unsigned char in_ch)
+{
+	if(in_ch >= 4)
+		return false;
+
+	char Read_Byte[8] = {0,};
+	char Addr_Byte[8] = {0,};
+
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
+	{
+		case 0:
+			Card_Addr = CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_1;
+			break;
+
+		case 1:
+			Card_Addr = CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_2;
+			break;
+
+		case 2:
+			Card_Addr = CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_3;
+			break;
+
+		case 3:
+			Card_Addr = CARD_ADDRESS_ON_OFF_INPUT_READ_24CH_4;
+			break;
+
+		default:
+			return false;
+	}
+
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
+	Addr_Byte[0] = 0x00;
+	Addr_Byte[1] = 0x00;
+	Addr_Byte[2] = 0x00;
+	if(!recv(Read_Byte, Addr_Byte))
+		return false;
+	memcpy(&m_on_off_input[in_ch][0], Read_Byte, sizeof(Read_Byte));
+
+	Addr_Byte[0] = 0x01;
+	Addr_Byte[1] = 0x00;
+	Addr_Byte[2] = 0x00;
+	if(!recv(Read_Byte, Addr_Byte))
+		return false;
+	memcpy(&m_on_off_input[in_ch][8], Read_Byte, sizeof(Read_Byte));
+
+	Addr_Byte[0] = 0x00;
+	Addr_Byte[1] = 0x01;
+	Addr_Byte[2] = 0x00;
+	if(!recv(Read_Byte, Addr_Byte))
+		return false;
+	memcpy(&m_on_off_input[in_ch][16], Read_Byte, sizeof(Read_Byte));
+
+
+	//40채널짜리인지 확인한다.
+	for(int i = 24; i < 40; i++)
+	{
+		if(m_on_off_input_pull_up[in_ch][i] != 0x00
+		|| m_on_off_input_pull_down[in_ch][i] != 0x00)
+		{
+			Addr_Byte[0] = 0x01;
+			Addr_Byte[1] = 0x01;
+			Addr_Byte[2] = 0x00;
+			if(!recv(Read_Byte, Addr_Byte))
+				return false;
+			memcpy(&m_on_off_input[in_ch][24], Read_Byte, sizeof(Read_Byte));
+
+			Addr_Byte[0] = 0x00;
+			Addr_Byte[1] = 0x00;
+			Addr_Byte[2] = 0x01;
+			if(!recv(Read_Byte, Addr_Byte))
+				return false;
+			memcpy(&m_on_off_input[in_ch][32], Read_Byte, sizeof(Read_Byte));
+
+			break;
+		}
+	}
+
+	return true;
+}
+
+bool JK_ITLab::NICard::set_mux(unsigned char in_ch)
+{
+	if(in_ch >= 8)
+		return false;
+
+	char Data_Byte[8] = {0,};
+	char Addr_Byte[8] = {0,};
+
+	unsigned char Card_Addr = 0;
+	switch(in_ch)
+	{
+		case 0:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_1;
+			break;
+
+		case 1:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_2;
+			break;
+
+		case 2:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_3;
+			break;
+
+		case 3:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_4;
+			break;
+
+		case 4:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_5;
+			break;
+
+		case 5:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_6;
+			break;
+
+		case 6:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_7;
+			break;
+
+		case 7:
+			Card_Addr = CARD_ADDRESS_IP_MUX_40CH_8;
+			break;
+
+
+		default:
+			return false;
+	}
+
+	//주소만들기
+	for(int i = 0 ; i < 8 ; i++)
+	{
+		if((0x01 << i) & Card_Addr)
+			Addr_Byte[i] = 0x01;
+	}
+
+	//00 1~8
+	Addr_Byte[0] = 0x00;
+	Addr_Byte[1] = 0x00;
+	memset(Data_Byte, 0x00, sizeof(Data_Byte));
+	memcpy(Data_Byte, m_mux[in_ch], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, false)) return false;
+
+	//10 9~16
+	Addr_Byte[0] = 0x01;
+	Addr_Byte[1] = 0x00;
+	memset(Data_Byte, 0x00, sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_mux[in_ch][8], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, false)) return false;
+
+	//01 17~24
+	Addr_Byte[0] = 0x00;
+	Addr_Byte[1] = 0x01;
+	memset(Data_Byte, 0x00, sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_mux[in_ch][16], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
 	//01 25~32
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x01;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_mux[channel][24], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_mux[in_ch][24], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
 	//01 33~40
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
 	memset(Data_Byte, 0x00, sizeof(Data_Byte));
-	memcpy(Data_Byte, &m_mux[channel][32], sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_mux[in_ch][32], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, true)) return false;
 
 	return true;

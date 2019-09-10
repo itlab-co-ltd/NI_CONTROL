@@ -1,5 +1,5 @@
 /*============================================================================//
-Ver 5.0 - 2019.06.17
+Ver 6.0 - 2019.09.10
 
 Made By Jaden Kim
 
@@ -8,6 +8,10 @@ Made By Jaden Kim
 		심플하게 하기 위해 내부변수를 이용해서 제어하도록 변경
 	- 2019.06.17
 		AD Output 2ch로 변경.
+	- 2019.09.10
+		변수에 카드 주소->채널번호로 변경(사용하기 더 편하도록.)
+		싱크만 가능하도록 수정->싱크 안하는거는 옛날꺼라 안쓰고 테스트가 안 되어 있음.
+		ON OFF INPUT 자동으로 40핀인지 체크 - 24번 이후에 세팅이 있을경우 SET & READ함
 @Error
 //============================================================================*/
 
@@ -93,7 +97,7 @@ namespace JK_ITLab
 		public:
 						NICard();//생성자
 
-		bool 			init(bool in_isUsingSync = true);//초기화 매개변수-유닛 초기화 사용여부.
+		bool 			init();
 		void 			release();//릴리즈
 
 		//ni card
@@ -101,28 +105,28 @@ namespace JK_ITLab
 		void			get_ni_ad();                       			//전압 입력
 
 		//for 0x00~0x0f input output
-		bool			get_input(unsigned char in_cardAddress);
-		bool			set_output(unsigned char in_cardAddress);
+		bool			get_input(unsigned char in_ch);
+		bool			set_output(unsigned char in_ch);
 
 		//for 0x10~0x1f	short
-		bool  			test_short_24ch(int in_numOfPin, int in_shortDelay_ms, unsigned char in_cardAddress);//핀수, 쇼트측정
-		bool  			test_short_40ch(int in_numOfPin, int in_shortDelay_ms, unsigned char in_cardAddress);//CARD_ADDRESS_IP_SHORT_MUX_40CH 용
+		bool  			test_short_24ch(int in_numOfPin, int in_shortDelay_ms, unsigned char in_ch);//핀수, 쇼트측정
+		bool  			test_short_40ch(int in_numOfPin, int in_shortDelay_ms, unsigned char in_ch);//CARD_ADDRESS_IP_SHORT_MUX_40CH 용
 
         //for 0x20~0x2f	ad
-		bool			set_ad(unsigned char in_cardAddress);
+		bool			set_ad(unsigned char in_ch);
 
 		//for 0x30~0x3f onoff output
-		bool			set_onoff_output(unsigned char in_cardAddress);
+		bool			set_onoff_output(unsigned char in_ch);
 
 		//for 0x40~0x4f current
-		bool			set_current(unsigned char in_cardAddress);
+		bool			set_current(unsigned char in_ch);
 
-		//for 0x50~0x5f & 0x60~0x6f
-		bool			set_onoff_input(unsigned char in_cardAddress, bool is_40pin = false);
-		bool			get_onoff_input(unsigned char in_cardAddress, bool is_40pin = false);
+		//for 0x50~0x5f & 0x60~0x6f - 40채널은 0,2를 쓴다(1쓰지 말 것.)
+		bool			set_onoff_input(unsigned char in_ch);
+		bool			get_onoff_input(unsigned char in_ch);
 
 		//for 0x80~0x9f
-		bool			set_mux(unsigned char in_cardAddress);
+		bool			set_mux(unsigned char in_ch);
 
 		float			m_ni_ad_output[2];
 		float			m_ni_ad_input[16];					//AD 정보
@@ -139,7 +143,6 @@ namespace JK_ITLab
 		char			m_current_ad[4][4];
 
 		private:
-		bool			m_isUsingSync;
 		TaskHandle 		m_Handle_Addr;//주소 핸들 값.
 		TaskHandle 		m_Handle_Control;//컨트롤 핸들 값.
 		TaskHandle 		m_Handle_UnitSycn;//Unit과 동기화를 하기위함.
