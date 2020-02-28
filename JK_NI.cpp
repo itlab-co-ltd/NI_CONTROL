@@ -1086,35 +1086,25 @@ bool JK_ITLab::NICard::set_onoff_input(unsigned char in_ch)
 	memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][16], sizeof(Data_Byte));
 	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
-	//40채널짜리인지 확인한다.
-	for(int i = 24; i < 40; i++)
-	{
-		if(m_on_off_input_pull_up[in_ch][i] != 0x00
-		|| m_on_off_input_pull_down[in_ch][i] != 0x00)
-		{
-			//01 25~32
-			Addr_Byte[0] = 0x01;
-			Addr_Byte[1] = 0x01;
-			Addr_Byte[2] = 0x00;
-			memset(Data_Byte, 0x00, sizeof(Data_Byte));
-			memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][24], sizeof(Data_Byte));
-			if(!send(Addr_Byte, Data_Byte, true)) return false;
-			memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][24], sizeof(Data_Byte));
-			if(!send(Addr_Byte, Data_Byte, false)) return false;
+	//01 25~32
+	Addr_Byte[0] = 0x01;
+	Addr_Byte[1] = 0x01;
+	Addr_Byte[2] = 0x00;
+	memset(Data_Byte, 0x00, sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][24], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, true)) return false;
+	memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][24], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
-			//01 33~40
-			Addr_Byte[0] = 0x00;
-			Addr_Byte[1] = 0x00;
-			Addr_Byte[2] = 0x01;
-			memset(Data_Byte, 0x00, sizeof(Data_Byte));
-			memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][32], sizeof(Data_Byte));
-			if(!send(Addr_Byte, Data_Byte, true)) return false;
-			memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][32], sizeof(Data_Byte));
-			if(!send(Addr_Byte, Data_Byte, false)) return false;
-
-			break;
-		}
-	}
+	//01 33~40
+	Addr_Byte[0] = 0x00;
+	Addr_Byte[1] = 0x00;
+	Addr_Byte[2] = 0x01;
+	memset(Data_Byte, 0x00, sizeof(Data_Byte));
+	memcpy(Data_Byte, &m_on_off_input_pull_up[in_ch][32], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, true)) return false;
+	memcpy(Data_Byte, &m_on_off_input_pull_down[in_ch][32], sizeof(Data_Byte));
+	if(!send(Addr_Byte, Data_Byte, false)) return false;
 
 	return true;
 }
@@ -1178,30 +1168,19 @@ bool JK_ITLab::NICard::get_onoff_input(unsigned char in_ch)
 		return false;
 	memcpy(&m_on_off_input[in_ch][16], Read_Byte, sizeof(Read_Byte));
 
+	Addr_Byte[0] = 0x01;
+	Addr_Byte[1] = 0x01;
+	Addr_Byte[2] = 0x00;
+	if(!recv(Read_Byte, Addr_Byte))
+		return false;
+	memcpy(&m_on_off_input[in_ch][24], Read_Byte, sizeof(Read_Byte));
 
-	//40채널짜리인지 확인한다.
-	for(int i = 24; i < 40; i++)
-	{
-		if(m_on_off_input_pull_up[in_ch][i] != 0x00
-		|| m_on_off_input_pull_down[in_ch][i] != 0x00)
-		{
-			Addr_Byte[0] = 0x01;
-			Addr_Byte[1] = 0x01;
-			Addr_Byte[2] = 0x00;
-			if(!recv(Read_Byte, Addr_Byte))
-				return false;
-			memcpy(&m_on_off_input[in_ch][24], Read_Byte, sizeof(Read_Byte));
-
-			Addr_Byte[0] = 0x00;
-			Addr_Byte[1] = 0x00;
-			Addr_Byte[2] = 0x01;
-			if(!recv(Read_Byte, Addr_Byte))
-				return false;
-			memcpy(&m_on_off_input[in_ch][32], Read_Byte, sizeof(Read_Byte));
-
-			break;
-		}
-	}
+	Addr_Byte[0] = 0x00;
+	Addr_Byte[1] = 0x00;
+	Addr_Byte[2] = 0x01;
+	if(!recv(Read_Byte, Addr_Byte))
+		return false;
+	memcpy(&m_on_off_input[in_ch][32], Read_Byte, sizeof(Read_Byte));
 
 	return true;
 }
