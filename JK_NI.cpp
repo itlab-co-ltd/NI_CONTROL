@@ -33,6 +33,7 @@ JK_ITLab::NICard::NICard()
 	m_Handle_DataOutput 	 = 0x00;
 	m_Handle_AnalogOutput    = 0x00;
 
+	m_ai_end = 0;
 	memset(m_input  , 0x00, sizeof(m_input));
 	memset(m_output , 0x00, sizeof(m_output));
 	memset(m_ad_set, 0x00, sizeof(m_ad_set));
@@ -47,14 +48,17 @@ JK_ITLab::NICard::NICard()
 	memset(m_current_ad, 0x00, sizeof(m_current_ad));
 }
 
-bool JK_ITLab::NICard::init()
+bool JK_ITLab::NICard::init(int ai_end)
 {
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return true;
 #else
+	m_ai_end = ai_end;
+	AnsiString Str = "Dev1/ai0:";
+	Str += ai_end;
 	if(DAQmxFailed(DAQmxCreateTask("",&m_Handle_AnalogInput)))return false;
 	if(DAQmxFailed(DAQmxCreateAIVoltageChan(m_Handle_AnalogInput,//핸들
-	"Dev1/ai0:15",//물리적 채널
+	Str.c_str(),//물리적 채널
 	"",//채널의 이름
 	DAQmx_Val_RSE,//입력모드 설정
 	-10.0,//입력 기대 최소값
@@ -96,7 +100,7 @@ bool JK_ITLab::NICard::init()
 
 void JK_ITLab::NICard::release()
 {
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return ;
 #else
 	if(m_Handle_AnalogInput != 0)
@@ -145,7 +149,7 @@ void JK_ITLab::NICard::release()
 
 void JK_ITLab::NICard::set_ni_ad()
 {
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return ;
 #else
 	float64 voltage[2];
@@ -460,7 +464,7 @@ bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsig
 	if(in_ch >= 4)
 		return false;
 
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return true;
 #else
 	if(in_numOfPin > 40)
@@ -473,19 +477,19 @@ bool JK_ITLab::NICard::test_short_40ch(int in_numOfPin, int in_shortDelay, unsig
 	switch(in_ch)
 	{
 		case 0:
-			Card_Addr = CARD_ADDRESS_SHORT_40CH_1;
+			Card_Addr = CARD_ADDRESS_IP_SHORT_MUX_40CH_1;
 			break;
 
 		case 1:
-			Card_Addr = CARD_ADDRESS_SHORT_40CH_2;
+			Card_Addr = CARD_ADDRESS_IP_SHORT_MUX_40CH_2;
 			break;
 
 		case 2:
-			Card_Addr = CARD_ADDRESS_SHORT_40CH_3;
+			Card_Addr = CARD_ADDRESS_IP_SHORT_MUX_40CH_3;
 			break;
 
 		case 3:
-			Card_Addr = CARD_ADDRESS_SHORT_40CH_4;
+			Card_Addr = CARD_ADDRESS_IP_SHORT_MUX_40CH_4;
 			break;
 
 		default:
@@ -699,21 +703,21 @@ bool JK_ITLab::NICard::set_ad(unsigned char in_ch)
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x00;
 	memcpy(Data_Byte, &m_ad_set[in_ch][0], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, false))
+	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
 
 	//10 9~16
 	Addr_Byte[0] = 0x01;
 	Addr_Byte[1] = 0x00;
 	memcpy(Data_Byte, &m_ad_set[in_ch][8], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, false))
+	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
 
 	//01 17~24
 	Addr_Byte[0] = 0x00;
 	Addr_Byte[1] = 0x01;
 	memcpy(Data_Byte, &m_ad_set[in_ch][16], sizeof(Data_Byte));
-	if(!send(Addr_Byte, Data_Byte, false))
+	if(!send(Addr_Byte, Data_Byte, true))
 		return false;
 
 	return true;
@@ -845,7 +849,7 @@ bool JK_ITLab::NICard::set_current(unsigned char in_ch)
 
 void JK_ITLab::NICard::get_ni_ad()
 {
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return ;
 #else
 	int32 read_analog;
@@ -879,7 +883,7 @@ void JK_ITLab::NICard::get_ni_ad()
 
 bool JK_ITLab::NICard::send(char *in_addr, char *in_data, bool isReadByteHigh)
 {
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return true;
 #else
 	int32 read, Sample;
@@ -947,7 +951,7 @@ bool JK_ITLab::NICard::send(char *in_addr, char *in_data, bool isReadByteHigh)
 
 bool JK_ITLab::NICard::recv(char *out_data, char *in_addr)
 {
-#ifdef JK_NI_TESTING
+#if JK_NI_TESTING
 	return true;
 #else
 	int32 read, Sample;

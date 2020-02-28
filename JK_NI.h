@@ -1,5 +1,5 @@
 /*============================================================================//
-Ver 6.0 - 2019.09.10
+Ver 6.1 - 2019.11.27
 
 Made By Jaden Kim
 
@@ -12,6 +12,10 @@ Made By Jaden Kim
 		변수에 카드 주소->채널번호로 변경(사용하기 더 편하도록.)
 		싱크만 가능하도록 수정->싱크 안하는거는 옛날꺼라 안쓰고 테스트가 안 되어 있음.
 		ON OFF INPUT 자동으로 40핀인지 체크 - 24번 이후에 세팅이 있을경우 SET & READ함
+	- 2019.11.27
+		ai 갯수 수정가능하도록 변경
+		#ifdef JK_NI_TESTING로 인해 제어가 안되던거 #if JK_NI_TESTING로변경
+		ad float -> double로 변경
 @Error
 //============================================================================*/
 
@@ -21,7 +25,7 @@ Made By Jaden Kim
 #include "NIDAQmx.h"
 #pragma link "NIDAQmx.lib"
 
-#define JK_NI_TESTING							false
+#define JK_NI_TESTING							1
 
 //Card Address
 #define CARD_ADDRESS_INPUT_32CH_1				0x00
@@ -97,7 +101,7 @@ namespace JK_ITLab
 		public:
 						NICard();//생성자
 
-		bool 			init();
+		bool 			init(int ai_end = 15);
 		void 			release();//릴리즈
 
 		//ni card
@@ -128,12 +132,12 @@ namespace JK_ITLab
 		//for 0x80~0x9f
 		bool			set_mux(unsigned char in_ch);
 
-		float			m_ni_ad_output[2];
-		float			m_ni_ad_input[16];					//AD 정보
+		double			m_ni_ad_output[2];
+		double			m_ni_ad_input[16];					//AD 정보
 		char 			m_input[4][32];						//입력정보 저장 배열 - 채널, IO
 		char 			m_output[4][32];					//출력정보 저장 배열 - 채널, IO
 		char			m_ad_set[4][24];					//AD입력정보
-		float 			m_short_data[4][40][40];			//쇼트정보 저장 배열 - 채널, IO매트릭스(40핀*40핀)
+		double 			m_short_data[4][40][40];			//쇼트정보 저장 배열 - 채널, IO매트릭스(40핀*40핀)
 		char 			m_on_off_output[4][24];				//onoffoutput상태
 		char			m_on_off_input_pull_up[4][40];
 		char			m_on_off_input_pull_down[4][40];
@@ -150,6 +154,7 @@ namespace JK_ITLab
 		TaskHandle 		m_Handle_DataOutput;//digital ouput
 		TaskHandle 		m_Handle_AnalogOutput;//analog output
 		TaskHandle 		m_Handle_AnalogInput;
+		int				m_ai_end;
 
 		bool            UnitSyncCheck();
 		bool 			send(char *in_addr, char *in_data, bool isReadByteHigh);
